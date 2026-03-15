@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق البطاقات الإفتراضية</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+        rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+        #error-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--binance-black);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .error-icon-container {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(246, 70, 93, 0.1);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .error-icon-container i {
+            color: #f6465d;
+            font-size: 40px;
+        }
+
+        #error-wrapper h3 {
+            font-size: 20px;
+            color: var(--binance-text);
+            margin: 0 0 12px 0;
+            font-weight: 600;
+        }
+
+        #error-wrapper p {
+            font-size: 14px;
+            color: var(--binance-muted);
+            line-height: 1.5;
+            margin: 0 0 32px 0;
+            max-width: 280px;
+        }
+
+        .retry-btn {
+            width: 100%;
+            max-width: 200px;
+            background-color: var(--binance-yellow);
+            color: #000000;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .retry-btn:hover {
+            opacity: 0.9;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        :root {
+            --bg-color: #121212;
+            --card-gold: #f4e4bc;
+            --dark-surface: #1e1e1e;
+            --accent-gold: #d4af37;
+            --text-white: #ffffff;
+            --text-gray: #9e9e9e;
+            --binance-yellow: #f0b90b;
+            --binance-black: #111111;
+        }
+
+        /* شاشة التحميل كاملة */
+        #loader-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            /* ليكون فوق كل شي */
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        /* الدائرة التي تدور */
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #333;
+            border-top: 5px solid var(--accent-gold);
+            /* اللون الذهبي */
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        #loader-wrapper p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        /* حركة الدوران */
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* كلاس للإخفاء */
+        .loader-hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 120px;
+            /* فوق الزر الكبير بشوي */
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #000;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast i {
+            color: #27ae60;
+            font-size: 1.1rem;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            padding-bottom: 100px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .back-btn {
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .card-wrapper {
+            perspective: 1000px;
+            margin-bottom: 15px;
+        }
+
+        .virtual-card {
+            background-color: var(--card-gold);
+            border-radius: 24px;
+            padding: 25px;
+            color: #1a1a1a;
+            position: relative;
+            aspect-ratio: 1.6 / 1;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .visa-logo {
+            width: 55px;
+        }
+
+        .nfc-group {
+            display: flex;
+            gap: 12px;
+            font-size: 1.4rem;
+            opacity: 0.7;
+        }
+
+        .card-number {
+            font-size: 1.5rem;
+            font-family: 'Open Sans', sans-serif;
+            letter-spacing: 2px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .card-bottom-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-block span {
+            font-size: 0.65rem;
+            display: block;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        .info-block p {
+            margin: 2px 0 0;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* النقاط تحت البطاقة */
+        .dots-container {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin: 15px 0;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            background: #333;
+            border-radius: 50%;
+        }
+
+        .dot.active {
+            background: #6c5ce7;
+            width: 15px;
+            border-radius: 10px;
+        }
+
+        /* الأزرار السريعة */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .action-btn i {
+            font-size: 1.3rem;
+            padding: 10px;
+        }
+
+        .action-btn span {
+            font-size: 0.75rem;
+        }
+
+        .action-btn:hover {
+            color: var(--text-white);
+        }
+
+        /* قائمة البيانات */
+        .details-list {
+            background-color: var(--dark-surface);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 15px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-label {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .item-value {
+            font-size: 0.9rem;
+            color: var(--text-white);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .copy-icon {
+            color: var(--accent-gold);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        /* زر الإضافة الثابت */
+        .add-btn-fixed {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 380px;
+            background-color: var(--accent-gold);
+            color: #000;
+            border: none;
+            padding: 16px;
+            border-radius: 14px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 360px) {
+            .card-number {
+                font-size: 1.2rem;
+            }
+
+            .info-block p {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <div class="header">
+            <div class="back-btn"></div>
+            <h1>البطاقات الإفتراضية</h1>
+            <div style="width: 20px;"></div>
+        </div>
+        <div id="error-wrapper" class="hidden">
+            <div class="error-icon-container">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h3 style="color: #fdfd00;">فشل تحميل الصفحة</h3>
+            <p>تعذر الاتصال بالخادم حالياً. يرجى التحقق من اتصال الإنترنت الخاص بك.</p>
+            <button
+                style="font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;"
+                class="retry-btn" onclick="location.reload()">
+                إعادة المحاولة
+            </button>
+        </div>
+        <div id="loader-wrapper">
+            <div class="loader"></div>
+            <p>جاري تحميل البيانات...</p>
+        </div>
+        <div id="toast" class="toast">
+            <i class="fas fa-check-circle"></i>
+            <span>تم النسخ إلى الحافظة</span>
+        </div>
+        <div class="card-wrapper">
+            <div class="virtual-card">
+                <div class="card-top">
+                    <div class="nfc-group">
+                        <i class="bi bi-sim-fill"></i>
+                    </div>
+                    <img src="data:image/png;base64,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"
+                        class="visa-logo" alt="visa">
+                </div>
+
+                <div class="card-number" id="card-num-display">**** **** **** ****</div>
+                <div class="card-bottom-info">
+                    <div class="info-block">
+                        <span>CVV</span>
+                        <p id="displayCVV">***</p>
+                    </div>
+                    <div class="info-block" style="text-align: left;">
+                        <span>الرصيد</span>
+                        <p id="displayBalance">***</p>
+                    </div>
+                    <div class="info-block">
+                        <span>تاريخ الإنتهاء</span>
+                        <p id="displayExp">**/**</p>
+                    </div>
+                    <div class="info-block" style="text-align: left;">
+                        <span>الاسم</span>
+                        <p id="displayName">******</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="quick-actions">
+            <button class="action-btn">
+                <i class="fas fa-snowflake"></i>
+                <span>تجميد</span>
+            </button>
+            <button class="action-btn" onclick="toggleCardNumber()">
+                <i class="fas fa-eye" id="eye-icon"></i>
+                <span id="show-hide" onclick="showCard(user_id)">عرض</span>
+            </button>
+            <button class="action-btn">
+                <i class="fas fa-sync-alt" onclick="showRecharge()"></i>
+                <span>إعادة الشحن</span>
+            </button>
+            <button class="action-btn">
+                <i class="bi bi-list-task" onclick="showTranaction()"></i>
+                <span>المعاملات</span>
+            </button>
+        </div>
+
+        <div class="details-list">
+            <div class="list-item">
+                <div class="item-value" id="details-name">******</div>
+                <div class="item-label">اسم حامل البطاقة <i class="fas fa-user-circle"></i></div>
+            </div>
+            <div class="list-item">
+                <div class="item-value">USD</div>
+                <div class="item-label">العملة المستخدمة <i class="fas fa-coins"></i></div>
+            </div>
+            <div class="list-item">
+                <div class="item-value">
+                    <i class="far fa-copy copy-icon" onclick="copyText('4288520143303388')"></i>
+                    <span id="details-number">****************</span>
+                </div>
+                <div class="item-label">رقم البطاقة <i class="fas fa-credit-card"></i></div>
+            </div>
+            <div class="list-item">
+                <div class="item-value">
+                    <i class="far fa-copy copy-icon" onclick="copyText('597')"></i>
+                    <span id="details-cvv">***</span>
+                </div>
+                <div class="item-label">CVV <i class="fas fa-shield-alt"></i></div>
+            </div>
+            <div class="list-item">
+                <div class="item-value" id="details-exp">**/**</div>
+                <div class="item-label">تاريخ الإنتهاء <i class="fas fa-calendar-day"></i></div>
+            </div>
+            <div class="list-item">
+                <div class="item-value">
+                    <i class="far fa-copy copy-icon" onclick="copyText('3401 N. Miami, Ave. Ste 2...')"></i>
+                    <span id="details-address">***********</span>
+                </div>
+                <div class="item-label">العنوان <i class="fas fa-map-marker-alt"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let flask_url = "http://144.172.107.161:5000";
+        let isHidden = true;
+        let cardData = {
+            fullNum: "",
+            maskedNum: "",
+            balance: "",
+            cvv: "",
+            exp: "",
+            name: "",
+            address: ""
+        };
+        async function showCard(user_id) {
+            let url = `${flask_url}/show_card?user_id=${user_id}`;
+            try {
+                let response = await fetch(url);
+                let data = await response.json();
+                if (data) {
+                    cardData.fullNum = data.cardNumber;
+                    cardData.maskedNum = data.mask || "**** **** **** " + data.cardNumber.slice(-4);
+                    cardData.balance = `${data.balance} $`;
+                    cardData.cvv = data.cvv;
+                    cardData.exp = data.exp;
+                    cardData.name = data.nameHolder;
+                    if (data.address) cardData.address = data.address;
+                    updateUI(true);
+                    document.getElementById("loader-wrapper").classList.add("loader-hidden");
+                }
+                else {
+                    showError();
+                }
+            }
+            catch (error) {
+                showError();
+                console.log("Fetch Error:", error);
+            }
+        }
+        function updateUI(hide) {
+            const displayNum = document.getElementById("card-num-display");
+            const displayBal = document.getElementById("displayBalance");
+            const displayCVV = document.getElementById("displayCVV");
+            const displayExp = document.getElementById("displayExp");
+            const displayName = document.getElementById("displayName");
+            const detName = document.getElementById("details-name");
+            const detNum = document.getElementById("details-number");
+            const detCVV = document.getElementById("details-cvv");
+            const detExp = document.getElementById("details-exp");
+            const detAddr = document.getElementById("details-address");
+            if (hide) {
+                displayNum.innerText = cardData.maskedNum;
+                displayBal.innerText = "***";
+                displayCVV.innerText = "***";
+                displayExp.innerText = "**/**";
+                displayName.innerText = "******";
+                detName.innerText = "******";
+                detNum.innerText = "****************";
+                detCVV.innerText = "***";
+                detExp.innerText = "**/**";
+                detAddr.innerText = "***********";
+            } else {
+                displayNum.innerText = cardData.fullNum;
+                displayBal.innerText = cardData.balance;
+                displayCVV.innerText = cardData.cvv;
+                displayExp.innerText = cardData.exp;
+                displayName.innerText = cardData.name;
+                detName.innerText = cardData.name;
+                detNum.innerText = cardData.fullNum;
+                detCVV.innerText = cardData.cvv;
+                detExp.innerText = cardData.exp;
+                detAddr.innerText = cardData.address;
+            }
+        }
+        function toggleCardNumber() {
+            const icon = document.getElementById('eye-icon');
+            const textLabel = document.getElementById("show-hide");
+
+            if (isHidden) {
+                updateUI(false);
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+                textLabel.innerText = "إخفاء";
+                isHidden = false;
+            } else {
+                updateUI(true);
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+                textLabel.innerText = "عرض";
+                isHidden = true;
+            }
+        }
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast();
+            });
+        }
+        function showRecharge() {
+            user_id = new URLSearchParams(window.location.search).get('user_id') || "1";
+            window.location.href = `recharge.html?user_id=${user_id}`;
+        }
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 1000);
+        }
+        function showError() {
+            document.getElementById("loader-wrapper").classList.add("loader-hidden");
+            document.querySelectorAll(".card-wrapper, .quick-actions, .details-list").forEach(el => el.classList.add("hidden"));
+            document.getElementById("error-wrapper").classList.remove("hidden");
+        }
+        function showTranaction() {
+            user_id = new URLSearchParams(window.location.search).get('user_id') || "1";
+            window.location.href = `transactions.html?user_id=${user_id}`;
+        }
+        window.onload = async function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const user_id = urlParams.get('user_id') || "1";
+            await showCard(user_id);
+        };
+    </script>
+</body>
+
+</html>

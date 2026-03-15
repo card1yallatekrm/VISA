@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شحن الرصيد | يلا تكرم</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b0b0b;
+            --surface: #161616;
+            --accent: #d4af37;
+            --border: #2a2a2a;
+            --text: #e0e0e0;
+            --muted: #999;
+            --success: #2ecc71;
+            --fail: #e74c3c;
+            --info: #3498db;
+            --binance-black: #0b0e11;
+            --binance-gray: #1e2329;
+            --binance-yellow: #fcd535;
+            --binance-text: #eaecef;
+            --binance-muted: #848e9c;
+            --binance-border: #474d57;
+            --input-bg: #2b3139;
+        }
+
+        .insufficient-balance-msg {
+            border-top: 4px solid #f6465d;
+        }
+
+        /* أنيميشن الهزة - Shake Effect */
+        @keyframes shake {
+            0% {
+                transform: translate(-50%, -50%) translateX(0);
+            }
+
+            25% {
+                transform: translate(-50%, -50%) translateX(-8px);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) translateX(8px);
+            }
+
+            75% {
+                transform: translate(-50%, -50%) translateX(-8px);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) translateX(0);
+            }
+        }
+
+        .apply-shake {
+            animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+        }
+
+        .balance-icon {
+            color: #f6465d;
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+
+        .deposit-btn {
+            background-color: #fcd535;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 15px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .server-fail-msg {
+            border-top: 4px solid #f6465d;
+        }
+
+        .server-fail-msg .status-icon {
+            color: #f6465d;
+            background: rgba(246, 70, 93, 0.1);
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 16px;
+        }
+
+        .support-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #fcd535;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-card {
+            display: none;
+            /* مخفي افتراضياً */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 350px;
+            background-color: #1e2329;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+            z-index: 11000;
+            border: 1px solid #2b3139;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -45%);
+            }
+
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .status-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #eaecef;
+        }
+
+        .status-desc {
+            font-size: 14px;
+            color: #848e9c;
+            line-height: 1.5;
+        }
+
+        /* 1. واجهة "رقم غير صالح" */
+        .error-msg {
+            border-top: 4px solid #f6465d;
+        }
+
+        .error-msg .status-icon {
+            color: #f6465d;
+        }
+
+        /* 2. واجهة "جاري المعالجة" */
+        .loading-msg .status-icon {
+            color: #fcd535;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(252, 213, 53, 0.1);
+            border-top: 4px solid #fcd535;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        /* 3. واجهة "الرد من الـ API" (نجاح) */
+        .success-msg {
+            border-top: 4px solid #2ecc71;
+        }
+
+        .success-msg .status-icon {
+            color: #2ecc71;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* زر الإغلاق للرسائل */
+        .close-status {
+            margin-top: 20px;
+            background: #2b3139;
+            color: #eaecef;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', 'Open Sans', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* اللودر - Loader */
+        #loader-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #333;
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loader-hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #error-wrapper {
+            position: fixed;
+            /* مشان يغطي الشاشة كلها */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--binance-black);
+            /* نفس خلفية التطبيق */
+            display: flex;
+            flex-direction: column;
+            /* العناصر تحت بعض */
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10000;
+            /* يكون فوق كل شي */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .error-icon-container {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(246, 70, 93, 0.1);
+            /* خلفية حمراء خفيفة */
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .error-icon-container i {
+            color: #f6465d;
+            font-size: 40px;
+        }
+
+        #error-wrapper h3 {
+            font-size: 20px;
+            color: var(--binance-text);
+            margin: 0 0 12px 0;
+            font-weight: 600;
+        }
+
+        #error-wrapper p {
+            font-size: 14px;
+            color: var(--binance-muted);
+            line-height: 1.5;
+            margin: 0 0 32px 0;
+            max-width: 280px;
+        }
+
+        .retry-btn {
+            width: 100%;
+            max-width: 200px;
+            background-color: var(--binance-yellow);
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .retry-btn:hover {
+            opacity: 0.9;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        body {
+            background-color: var(--binance-black);
+            color: var(--binance-text);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .recharge-container {
+            width: 100%;
+            max-width: 450px;
+            background-color: var(--binance-gray);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            margin: 15px;
+        }
+
+        .recharge-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .recharge-header h1 {
+            font-size: 20px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .recharge-header i {
+            color: var(--binance-muted);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        /* المبالغ المحددة مسبقاً */
+        .amount-presets {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .preset-btn {
+            background-color: var(--input-bg);
+            border: 1px solid transparent;
+            color: var(--binance-text);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--binance-yellow);
+        }
+
+        .preset-btn.active {
+            border-color: var(--binance-yellow);
+            color: var(--binance-yellow);
+            background-color: rgba(252, 213, 53, 0.05);
+        }
+
+        /* حقول الإدخال */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            color: var(--binance-muted);
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            background-color: var(--input-bg);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            transition: border 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--binance-yellow);
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--binance-text);
+            padding: 14px 16px;
+            font-size: 16px;
+            outline: none;
+            font-weight: 500;
+        }
+
+        .input-wrapper .currency {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--binance-yellow);
+            font-weight: bold;
+        }
+
+        /* معلومات البطاقة */
+        .card-info-box {
+            background: rgba(132, 142, 156, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border: 1px dashed var(--binance-border);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .info-row span:first-child {
+            color: var(--binance-muted);
+        }
+
+        /* زر الإرسال */
+        .submit-btn {
+            width: 100%;
+            background-color: var(--binance-yellow);
+            color: #000;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        .secure-tag {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+            color: var(--binance-muted);
+        }
+
+        .secure-tag i {
+            color: var(--success);
+            margin-left: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+        <p>جاري تحميل البيانات...</p>
+    </div>
+    <div id="error-wrapper" class="hidden">
+        <div class="error-icon-container">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <h3 style="color: #fdfd00;">فشل تحميل الصفحة</h3>
+        <p>تعذر الاتصال بالخادم حالياً. يرجى التحقق من اتصال الإنترنت الخاص بك.</p>
+        <button
+            style="font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;"
+            class="retry-btn" onclick="location.reload()">
+            إعادة المحاولة
+        </button>
+    </div>
+    <div id="invalid-amount" class="status-card error-msg">
+        <div class="status-icon"><i class="fas fa-exclamation-circle"></i></div>
+        <div class="status-title">قيمة غير صالحة</div>
+        <div class="status-desc">يرجى إدخال مبلغ صحيح (أرقام فقط) لضمان إتمام عملية الشحن بنجاح.</div>
+        <button class="close-status" onclick="this.parentElement.style.display='none'">موافق</button>
+    </div>
+    <div id="insufficient-balance" class="status-card insufficient-balance-msg">
+        <div class="balance-icon">
+            <i class="fas fa-wallet"></i>
+        </div>
+        <div class="status-title">عذراً، الرصيد غير كافي</div>
+        <div class="status-desc">
+            رصيدك الحالي لا يغطي قيمة الشحن المطلوبة مع الرسوم. يرجى شحن حسابك أولاً.
+        </div>
+
+        <button
+            style="font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;"
+            class="deposit-btn" onclick="document.getElementById('insufficient-balance').style.display='none'">
+            حسنا
+        </button>
+    </div>
+    <div id="server-error" class="status-card server-fail-msg">
+        <div class="status-icon">
+            <i class="fas fa-server"></i>
+        </div>
+        <div class="status-title">فشل تنفيذ الطلب</div>
+        <div id="server-error-text" class="status-desc">
+            للأسف، واجه السيرفر مشكلة غير متوقعة أثناء معالجة طلبك. لم يتم خصم أي رصيد.
+        </div>
+
+        <button
+            style="font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;"
+            class="close-status" onclick="document.getElementById('server-error').style.display='none'">
+            إغلاق
+        </button>
+        <br>
+        <a href="https://t.me/YallaTekrm" class="support-link">
+            <i class="fab fa-telegram-plane"></i> مراسلة الدعم الفني
+        </a>
+    </div>
+    <div id="processing-request" class="status-card loading-msg">
+        <div class="spinner"></div>
+        <div class="status-title">جاري إنشاء طلبك...</div>
+        <div class="status-desc">نحن نقوم الآن بإرسال بياناتك بأمان. يرجى الانتظار للحظات ولا تغلق الصفحة.</div>
+    </div>
+    <div id="api-response" class="status-card success-msg">
+        <div class="status-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="status-title">تم تقديم الطلب!</div>
+        <div id="api-msg-text" class="status-desc">استلمنا طلب الشحن الخاص بك، سيتم تحديث رصيدك قريباً جداً.</div>
+        <button class="close-status" onclick="location.reload()"
+            style="font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;">ممتاز</button>
+    </div>
+    <div class="recharge-container">
+        <div class="recharge-header">
+            <i class="fas fa-chevron-right" onclick="backToCard()"></i>
+            <h1>تعبئة رصيد البطاقة</h1>
+            <i class="fas fa-question-circle"></i>
+        </div>
+        <div class="table-card hidden" id="main-content">
+            <div class="input-group">
+                <label>اختر مبلغ الشحن</label>
+                <div class="amount-presets">
+                    <div class="preset-btn" onclick="setAmount(10)">10$</div>
+                    <div class="preset-btn active" onclick="setAmount(50)">50$</div>
+                    <div class="preset-btn" onclick="setAmount(100)">100$</div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>مبلغ مخصص</label>
+                <div class="input-wrapper">
+                    <input type="number" id="customAmount" placeholder="0.00" oninput="updateSummary()">
+                    <input type="hidden" name="rate" id="rate">
+                    <input type="hidden" name="send" id="send">
+                    <span class="currency">USD</span>
+                </div>
+            </div>
+
+            <div class="card-info-box">
+                <div class="info-row">
+                    <span>رصيدك الحالي:</span>
+                    <span id="currentBalance"></span>
+                </div>
+                <div class="info-row">
+                    <span>رسوم الخدمة:</span>
+                    <span id="fees">0.00 SYP</span>
+                </div>
+                <div class="info-row"
+                    style="border-top: 1px solid var(--binance-border); padding-top: 8px; margin-top: 8px;">
+                    <span style="color: var(--binance-text);">الإجمالي المطلوب:</span>
+                    <span id="totalAmount" style="color: var(--binance-yellow); font-weight: bold;">0.00 SYP</span>
+                </div>
+            </div>
+            <button class="submit-btn" onclick="processRecharge()"
+                style="font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;">
+                تأكيد الشحن
+            </button>
+
+            <div class="secure-tag">
+                <i class="fas fa-shield-alt"></i>
+                دفع آمن ومحمي بواسطة نظام يلا تكرم
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
+<script>
+    fetchURL = "http://144.172.107.161:5000"
+    function setAmount(val) {
+        document.getElementById('customAmount').value = val;
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.innerText === val + '$') btn.classList.add('active');
+        });
+        updateSummary();
+    }
+    function showError() {
+        document.getElementById("loader-wrapper").style.display = "none";
+        document.getElementById("main-content").classList.add("hidden");
+        document.getElementById("error-wrapper").classList.remove("hidden");
+    }
+    function updateSummary() {
+        let amount = parseFloat(document.getElementById('customAmount').value) || 0;
+        let fees = document.getElementById('fees')
+        let rate = parseFloat(document.getElementById('rate').value) || 0;
+        let send = parseFloat((amount + 1) / 0.98)
+        let fee = parseFloat((send - amount) * 1.35 * rate)
+        let total = send * 1.35 * rate
+        document.getElementById('totalAmount').innerText = total.toFixed(2) + " SYP";
+        document.getElementById('fees').innerText = fee.toFixed(2) + " SYP";
+        document.getElementById('send').value = send.toFixed(2)
+    }
+    async function getUserBalance() {
+        let urlParams = new URLSearchParams(window.location.search);
+        let userId = urlParams.get('user_id') || "1";
+        let loader = document.getElementById('loader-wrapper');
+        let content = document.getElementById('main-content');
+        let rate1 = document.getElementById('rate')
+        try {
+            let response = await fetch(`${fetchURL}/get_balance?user_id=${userId}`);
+            let data = await response.json();
+            if (data.balance && data.rate !== undefined) {
+                document.getElementById('currentBalance').innerText = parseFloat(data.balance).toFixed(2) + " SYP";
+                rate1.value = data.rate
+                loader.classList.add('loader-hidden');
+                content.classList.remove('hidden');
+                document.getElementById("error-wrapper").classList.add("hidden");
+            } else {
+                document.getElementById('currentBalance').innerText = 'خطأ في البيانات';
+                showError()
+                return
+            }
+
+        }
+        catch (error) {
+            showError()
+            console.error("Error fetching user balance:", error);
+            document.getElementById('currentBalance').innerText = 'خطأ في الاتصال بالخادم';
+            return
+        }
+    }
+
+    function processRecharge() {
+        let amount = document.getElementById('customAmount').value;
+        if (!amount || amount <= 0) {
+            showInvalidAmount()
+            return;
+        }
+        if (parseFloat(document.getElementById('currentBalance').innerText) < parseFloat(document.getElementById('totalAmount').innerText)) {
+            showLowBalance()
+            return;
+        }
+        showProcessing()
+        let response = fetch(`${fetchURL}/recharge`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: new URLSearchParams(window.location.search).get('user_id') || "1",
+                amount: document.getElementById('send').value,
+                price: document.getElementById('totalAmount').innerText.replace(" SYP", "")
+            })
+        })
+        response.then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showApiResponse("تم شحن رصيدك بنجاح! سيتم تحديث الرصيد قريباً.");
+                } else {
+                    showServerError(data.message || "حدث خطأ أثناء شحن الرصيد. يرجى المحاولة لاحقاً.");
+                }
+            })
+            .catch(error => {
+                console.error("Error processing recharge:", error);
+                showServerError("تعذر الاتصال بالخادم. يرجى المحاولة لاحقاً.");
+            });
+    }
+    function backToCard() {
+        window.location.href = "index.html?user_id=" + new URLSearchParams(window.location.search).get('user_id');
+    }
+    function showServerError(message) {
+        document.getElementById('processing-request').style.display = 'none';
+        document.getElementById('server-error-text').innerText = message;
+        document.getElementById('server-error').style.display = 'block';
+    }
+    function showInvalidAmount() {
+        document.getElementById('invalid-amount').style.display = 'block';
+    }
+    function showProcessing() {
+        document.getElementById('processing-request').style.display = 'block';
+    }
+    function showLowBalance() {
+        let card = document.getElementById('insufficient-balance');
+        document.getElementById('processing-request').style.display = 'none';
+        card.style.display = 'block';
+        card.classList.add('apply-shake');
+        setTimeout(() => {
+            card.classList.remove('apply-shake');
+        }, 500);
+    }
+    function showApiResponse(message) {
+        document.getElementById('processing-request').style.display = 'none';
+        document.getElementById('api-msg-text').innerText = message;
+        document.getElementById('api-response').style.display = 'block';
+    }
+    window.onload = function () {
+        getUserBalance();
+    }
+</script>
